@@ -1,0 +1,11 @@
+{
+    "duration": 3,
+    "sparks": 10,
+    "cycles": 5,
+    "pm_type": "2.5",
+    "threshold": 100,
+    "arduino_baud_rate": 9600,
+    "arduino_timeout": 3,
+    "connection_retry_delay": 2,
+    "max_connection_retries": 5
+}

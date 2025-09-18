@@ -1,0 +1,7 @@
+eel
+pandas
+numpy
+scipy
+pytz
+RPi.GPIO
+smbus2

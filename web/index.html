@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spectrometer GUI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="header">
+    <h1 id="header-title">Welcome</h1>
+  </header>
+
+  <section id="welcome-screen" class="screen active">
+    <img src="logo.png" class="logo" alt="Logo">
+    <p class="subtitle">Developed at SDSU &amp; UCD</p>
+    <p class="version">v0.4.0-Alpha</p>
+    <button class="btn" onclick="showScreen('menu-screen')">Expert</button>
+    <button class="btn" onclick="showScreen('community-screen')">Community</button>
+  </section>
+
+  <section id="menu-screen" class="screen">
+    <button class="btn" onclick="showScreen('scan-screen')">Monitor Regularly</button>
+    <button class="btn" onclick="showScreen('pm-screen')">Monitor Adaptively</button>
+    <button class="btn" onclick="showScreen('hourly-monitoring-screen')">Monitor Hourly</button>
+    <button class="btn" onclick="showScreen('clean-screen')">Clean Electrode</button>
+    <button class="btn" onclick="showScreen('view-screen')">View Spectra</button>
+    <button class="btn secondary" onclick="showScreen('welcome-screen')">Back to Main Menu</button> 
+    <div id="menu-status" class="status disconnected">Not Connected</div>
+  </section>
+
+  <section id="community-screen" class="screen">
+    <button class="btn" onclick="showScreen('community-standard-screen')">Monitor Regularly</button>
+    <button class="btn" onclick="showScreen('community-adaptive-screen')">Monitor Adaptively</button>
+    <button class="btn secondary" onclick="showScreen('welcome-screen')">Back to Main Menu</button>
+    <div id="community-status" class="status disconnected">Not Connected</div>
+  </section>
+  
+  <section id="hourly-monitoring-screen" class="screen">
+    <p style="text-align:center; max-width: 350px; margin-bottom:1rem;">This mode runs a continuous hourly cycle. It pumps until the last two minutes of the hour, then performs a spark sequence.</p>
+    <div class="actions row">
+      <button class="btn" onclick="startHourlyMonitoring()">Start</button>
+      <button class="btn" onclick="abortOp()">Abort</button>
+      <button class="btn secondary" onclick="showScreen('menu-screen')">Back</button>
+    </div>
+    <div class="status-box">
+      <h3>Current Status</h3>
+      <p id="hourly-monitor-status">Ready</p>
+      <h3>Next Event</h3>
+      <p id="hourly-monitor-next-event">-</p>
+    </div>
+  </section>
+
+  <section id="scan-screen" class="screen">
+    <label>Duration (min)<input id="scan-duration" readonly onclick="openNumPad(this)"></label>
+    <label>Sparks<input id="scan-sparks" readonly onclick="openNumPad(this)"></label>
+    <label>Cycles<input id="scan-cycles" readonly onclick="openNumPad(this)"></label>
+    <div class="actions row">
+      <button class="btn" onclick="startScan()">Start</button>
+      <button class="btn" onclick="abortOp()">Abort</button>
+      <button class="btn secondary" onclick="showScreen('menu-screen')">Back</button>
+    </div>
+    <div id="scan-status" class="status">Ready</div>
+    <div class="progress-wrapper" id="scan-progress" style="display:none;">
+     <span id="scan-cycle">Cycle: 0/0</span>
+     <span id="scan-spark">Spark: 0/0</span>
+     <span id="scan-time">Time left: 00:00</span>
+    </div>
+  </section>
+
+  <section id="clean-screen" class="screen">
+    <label>Sparks<input id="clean-sparks" readonly onclick="openNumPad(this)"></label>
+    <div class="actions row">
+      <button class="btn" onclick="startClean()">Start</button>
+      <button class="btn" onclick="abortOp()">Abort</button>
+      <button class="btn secondary" onclick="showScreen('menu-screen')">Back</button>
+    </div>
+    <div id="clean-status" class="status">Ready</div>
+    <div class="progress-wrapper" id="clean-progress" style="display:none;">
+     <span id="clean-cycle">Cycle: 0/0</span>
+     <span id="clean-spark">Spark: 0/0</span>
+     <span id="clean-time">Time left: 00:00</span>
+    </div>
+  </section>
+
+  <section id="pm-screen" class="screen">
+  <label>PM Size (µm)
+    <select id="pm-type">
+      <option value="2.5">2.5</option>
+      <option value="10">10</option>
+    </select>
+  </label>
+    <label>Threshold<input id="pm-threshold" readonly onclick="openNumPad(this)"></label>
+    <label>Sparks<input id="pm-sparks" readonly onclick="openNumPad(this)"></label>
+    <div class="actions row">
+      <button class="btn" onclick="startPM()">Start</button>
+      <button class="btn" onclick="abortOp()">Abort</button>
+      <button class="btn secondary" onclick="showScreen('menu-screen')">Back</button>
+    </div>
+    <div id="pm-status" class="status">Ready</div>
+    <div class="progress-wrapper">
+      <span id="pm-current">0</span><span id="pm-max">/0</span>
+      <progress id="pm-bar" value="0" max="100"></progress>
+    </div>
+    <div id="pm-timer" class="status">Time Since Last Spark: 0s</div>
+  </section>
+
+  <section id="view-screen" class="screen">
+  <div class="actions row">
+    <button class="btn small" onclick="viewMode = 'single'; refreshList()">Single Scan</button>
+    <button class="btn small" onclick="viewMode = 'average'; loadAverage()">Average (Last 10)</button>
+  </div>
+
+    <select id="scan-list" onchange="loadScan(this.value)"></select>
+    <div id="plot"></div>
+    <div class="actions">
+      <button class="btn" onclick="refreshList()">Refresh</button>
+      <button class="btn secondary" onclick="showScreen('menu-screen')">Back</button>
+    </div>
+  </section>
+
+  <section id="community-standard-screen" class="screen">
+    <label>Total Time
+      <select id="cscan-duration"></select>
+    </label>
+    <p id="cscan-duration-info" style="font-size: 0.95rem; color: #555;"></p>
+    <label>Sparks<input id="cscan-sparks" readonly onclick="openNumPad(this)"></label>
+    <label>Cycles<input id="cscan-cycles" readonly onclick="openNumPad(this)"></label>
+    <div class="actions row">
+      <button class="btn" onclick="startCommunityScan()">Start</button>
+      <button class="btn" onclick="abortOp()">Abort</button>
+      <button class="btn secondary" onclick="showScreen('community-screen')">Back</button>
+    </div>
+    <div id="cscan-status" class="status">Ready</div>
+  </section>
+
+  <section id="community-adaptive-screen" class="screen">
+  <label>PM Size (µm)
+    <select id="cpm-type">
+      <option value="2.5">2.5</option>
+      <option value="10">10</option>
+    </select>
+  </label>
+    <label>Threshold<input id="cpm-threshold" readonly onclick="openNumPad(this)"></label>
+    <label>Sparks<input id="cpm-sparks" readonly onclick="openNumPad(this)"></label>
+    <div class="actions row">
+      <button class="btn" onclick="startCommunityPM(true)">Start</button>
+      <button class="btn" onclick="abortOp()">Abort</button>
+      <button class="btn secondary" onclick="showScreen('community-screen')">Back</button>
+    </div>
+    <div id="cpm-status" class="status">Ready</div>
+    <div class="progress-wrapper">
+      <span id="cpm-current">0</span><span id="cpm-max">/0</span>
+      <progress id="cpm-bar" value="0" max="100"></progress>
+    </div>
+    <div id="cpm-timer" class="status">Time Since Last Spark: 0s</div>
+  </section>
+
+  <div id="num-pad" class="modal hidden">
+    <div class="pad">
+      <p id="pad-context" style="margin-bottom: 0.5rem;"></p> 
+      <input id="pad-display" readonly>
+      <div class="keys"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="/eel.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
