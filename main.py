@@ -14,18 +14,22 @@ import pytz # Added for timezone support
 try:
     import RPi.GPIO as GPIO
     import smbus2
+    import board
+    import busio
+    import adafruit_mcp4725
     RPI_MODE = True
     print("Running in Raspberry Pi mode.")
 except ImportError:
-    print("WARNING: RPi.GPIO or smbus2 not found. Running in simulation mode.")
+    print("WARNING: RPi.GPIO, smbus2, or Adafruit libraries not found. Running in simulation mode.")
     RPI_MODE = False
 
 # --- GPIO and I2C Configuration ---
-PUMP_PIN = 16
+# PUMP_PIN is no longer needed for direct control
 RELAY_PIN = 6
 BOOST_PIN = 13
 I2C_BUS = 1
 DS3231_ADDRESS = 0x68
+MCP4725_ADDRESS = 0x62 # Default I2C address for the MCP4725
 
 def load_config():
     """
@@ -82,21 +86,33 @@ class RPIController:
     def __init__(self):
         self.operation_thread = None
         self.stop_operation = threading.Event()
+        self.dac = None
         if RPI_MODE:
             GPIO.setwarnings(False)
             GPIO.setmode(GPIO.BCM)
-            GPIO.setup(PUMP_PIN, GPIO.OUT)
+            # GPIO setup for pump is removed
             GPIO.setup(RELAY_PIN, GPIO.OUT)
             GPIO.setup(BOOST_PIN, GPIO.OUT)
-            GPIO.output(PUMP_PIN, GPIO.LOW)
             GPIO.output(RELAY_PIN, GPIO.LOW)
             GPIO.output(BOOST_PIN, GPIO.LOW)
-            print("GPIO pins initialized.")
+            
+            try:
+                # Initialize I2C bus and MCP4725 DAC
+                i2c = busio.I2C(board.SCL, board.SDA)
+                self.dac = adafruit_mcp4725.MCP4725(i2c, address=MCP4725_ADDRESS)
+                self.dac.normalized_value = 0.0 # Ensure pump is off at start
+                print("GPIO pins and MCP4725 DAC initialized.")
+            except Exception as e:
+                print(f"FATAL: Could not initialize MCP4725 DAC. Error: {e}")
+                # Potentially exit or handle the error appropriately
+                self.dac = None
+
 
     def set_pump(self, state):
-        if RPI_MODE:
-            GPIO.output(PUMP_PIN, GPIO.HIGH if state else GPIO.LOW)
-        print(f"Pump set to {'ON' if state else 'OFF'}")
+        # Control motor via DAC
+        if RPI_MODE and self.dac:
+            self.dac.normalized_value = 1.0 if state else 0.0
+        print(f"Pump DAC set to {'1.0 (ON)' if state else '0.0 (OFF)'}")
 
     def set_relay(self, state):
         if RPI_MODE:
@@ -110,8 +126,11 @@ class RPIController:
 
     def cleanup(self):
         if RPI_MODE:
+            # Set pump DAC to off before cleaning up GPIO
+            if self.dac:
+                self.dac.normalized_value = 0.0
             GPIO.cleanup()
-        print("GPIO cleaned up.")
+        print("GPIO cleaned up and pump turned off.")
 
     def run_scan_sequence(self, duration_min, sparks, cycles):
         print(f"Starting scan: {duration_min} mins, {sparks} sparks, {cycles} cycles")
@@ -332,5 +351,3 @@ if __name__ == '__main__':
         rpi_controller.abort_operation()
         rpi_controller.cleanup()
         print("Application has been shut down.")
-
-
